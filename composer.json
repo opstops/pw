@@ -1,0 +1,25 @@
+{
+    "name": "opstops/pw",
+    "description": "PHP PDO wrapper + ORM. Fast, lightweight, flexible and no dependencies!",
+    "keywords": ["PDO", "wrapper", "PHP", "query builder", "ORM"],
+    "type": "library",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Vitaly",
+            "email": "empty@email.address"
+        }
+    ],
+    "minimum-stability": "dev",
+    
+    "require": {
+        "php": "^7.2.0"
+    },
+    "require-dev": {
+    },
+    "autoload": {
+        "psr-4": {
+            "OpstopsPw\\": "src/"
+        }
+    }
+}

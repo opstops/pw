@@ -1,16 +1,15 @@
 <?php
 
-//Frwlove/
-
-ini_set('display_errors', 1);
+// ini_set('display_errors', 1);
 
 require __DIR__ . '/../vendor/autoload.php';
 
-use Libs\PdoWrapper\QueryBuilder as qb;
-use Libs\PdoWrapper\RowInterface;
+use OpstopsPw\QueryBuilder as qb;
+use OpstopsPw\Database;
+use OpstopsPw\RowInterface;
 
-$db = \Libs\PdoWrapper\Database::get([
-    'dsn' => 'mysql:host=127.0.0.1;dbname=td;charset=utf8',
+$db = Database::get([
+    'dsn' => 'mysql:host=127.0.0.1;dbname=db;charset=utf8',
     'username' => 'admin',
     'password' => 'admin',
     'options' => [
@@ -20,24 +19,25 @@ $db = \Libs\PdoWrapper\Database::get([
 
 
 echo '<pre>';
-//$q = qb::select('SELECT * FROM td_users')->where(['id' => 110])->order('username ASC, id DESC')->limit(5)->group('id')->offset(6);
-//var_dump($q->build()->sql); // SELECT * FROM td_users WHERE id = :id GROUP BY id ORDER BY username ASC, id DESC LIMIT 5 OFFSET 6
+$q = qb::select('SELECT * FROM users')->where(['id' => 110])->order('username ASC, id DESC')->limit(5)->group('id')->offset(6);
+var_dump($q->build()->sql); // SELECT * FROM users WHERE id = :id GROUP BY id ORDER BY username ASC, id DESC LIMIT 5 OFFSET 6
 
-//$q = qb::select('SELECT *')->from('td_users')->order(['username ASC', 'id DESC'])->limit(5)->offset(6);
-//var_dump($q->build()->sql); // SELECT * FROM td_users ORDER BY username ASC, id DESC LIMIT 5 OFFSET 6
+$q = qb::select('SELECT *')->from('users')->order(['username ASC', 'id DESC'])->limit(5)->offset(6);
+var_dump($q->build()->sql); // SELECT * FROM users ORDER BY username ASC, id DESC LIMIT 5 OFFSET 6
 
-//$q = qb::select("* FROM td_users WHERE id=:id", [':id' => 12]);
-//var_dump($q->build()); // SELECT * FROM td_users WHERE id=:id
+$q = qb::select("* FROM users WHERE id=:id", [':id' => 12]);
+var_dump($q->build()); // SELECT * FROM users WHERE id=:id
 
-// for other queries
-//$q = qb::query("CREATE TABLE IF NOT EXISTS tasks...");
-//var_dump($q->build()->sql); // CREATE TABLE IF NOT EXISTS tasks...
+for other queries
+$q = qb::query("CREATE TABLE IF NOT EXISTS tasks...");
+var_dump($q->build()->sql); // CREATE TABLE IF NOT EXISTS tasks...
 
+// --------------------------------------------------------------------------------
 
-//$q = qb::select("SELECT username, id FROM td_users WHERE id > :id ", ['id' => 15])->limit(3);
-//var_dump($q->build()->sql); // CREATE TABLE IF NOT EXISTS tasks...
+$q = qb::select("SELECT username, id FROM users WHERE id > :id ", ['id' => 15])->limit(3);
+var_dump($q->build()->sql); // CREATE TABLE IF NOT EXISTS tasks...
 
-//$res = $db->findAll($q);
+$res = $db->findAll($q);
 
 //Array
 //(
@@ -62,7 +62,7 @@ echo '<pre>';
 //)
 
 
-//$res = $db->findAll($q, null, PDO::FETCH_ASSOC);
+$res = $db->findAll($q, null, PDO::FETCH_ASSOC);
 
 //Array
 //(
@@ -88,8 +88,8 @@ echo '<pre>';
 
 
 
-//class RowModel implements RowInterface {}
-//$res = $db->findAll($q, RowModel::class);
+class RowModel implements RowInterface {}
+$res = $db->findAll($q, RowModel::class);
 
 //Array
 //(
@@ -115,7 +115,7 @@ echo '<pre>';
 
 
 
-//$res = $db->findCol($q);
+$res = $db->findCol($q);
 //Array
 //(
 //[0] => Lew
@@ -124,7 +124,7 @@ echo '<pre>';
 //)
 
 
-//$res = $db->findAssoc($q);
+$res = $db->findAssoc($q);
 
 //Array
 //(
@@ -134,7 +134,7 @@ echo '<pre>';
 //)
 
 
-//$res = $db->findRow($q, null, PDO::FETCH_ASSOC);
+$res = $db->findRow($q, null, PDO::FETCH_ASSOC);
 //Array
 //(
 //    [username] => Lew
@@ -146,37 +146,37 @@ echo '<pre>';
 //Lew
 
 
-//$res = $db->findOne(qb::select('NOW()'));
-//print_r($res);
+$res = $db->findOne(qb::select('NOW()'));
+print_r($res);
 
 
-//$q = qb::select("SELECT username, id")->from('td_users')->where([qb::RAW_WHERE => 'username IS NOT NULL AND 1', 'id' => ['>', 3] ])->limit(3);
-//var_dump($q->build()->sql);
-//$res = $db->findAll($q);
-//print_r($res);
+$q = qb::select("SELECT username, id")->from('users')->where([qb::RAW_WHERE => 'username IS NOT NULL AND 1', 'id' => ['>', 3] ])->limit(3);
+var_dump($q->build()->sql);
+$res = $db->findAll($q);
+print_r($res);
 
-//$q->toCount();
-//$res = $db->findOne($q); // 997
-//print_r($res);
+$q->toCount();
+$res = $db->findOne($q); // 997
+print_r($res);
 
-//$res = $db->findCount($q); // 997
-//print_r($res);
+$res = $db->findCount($q); // 997
+print_r($res);
 
 
 
-//$q = qb::insert('td_users2', [
-//    'username' => 'Alex-'.random_int(0, 9999),
-//    'email' => 'Email@host.xx',
-//    'password' => password_hash(random_bytes(32), PASSWORD_DEFAULT)
-//]);
-//print_r($q->build());
-//$res = $db->run($q); // return last insert id
-//var_dump($res);
+$q = qb::insert('users2', [
+   'username' => 'Alex-'.random_int(0, 9999),
+   'email' => 'Email@host.xx',
+   'password' => password_hash(random_bytes(32), PASSWORD_DEFAULT)
+]);
+print_r($q->build());
+$res = $db->run($q); // return last insert id
+var_dump($res);
 
-//$res = $db->runDebug($q); // pdo statement debug
-//var_dump($res);
+$res = $db->runDebug($q); // pdo statement debug
+var_dump($res);
 
-// INSERT INTO td_users2 (username,email,password,created_at,updated_at) VALUES (:username, :email, :password, :created_at, :updated_at)
+INSERT INTO users2 (username,email,password,created_at,updated_at) VALUES (:username, :email, :password, :created_at, :updated_at)
 
 //[:username] => Alex-8299
 //[:email] => Email@host.xx
@@ -186,12 +186,12 @@ echo '<pre>';
 
 
 
-//$qb = qb::update('td_users2', [
-//    'username' => 'Alex __ NEW__10',
-//], [
-//    'id' => 10
-//]);
-//var_dump($qb->build()->sql); // UPDATE td_users2 SET username = :username, updated_at = :updated_at WHERE id = :id
-//
-//$res = $db->run($qb); // rows affected
-//var_dump($res);
+$qb = qb::update('users2', [
+   'username' => 'Alex __ NEW__10',
+], [
+   'id' => 10
+]);
+var_dump($qb->build()->sql); // UPDATE users2 SET username = :username, updated_at = :updated_at WHERE id = :id
+
+$res = $db->run($qb); // rows affected
+var_dump($res);

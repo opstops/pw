@@ -215,8 +215,9 @@ class Database extends PDO
      */
     public function findCount(QueryBuilder $query, string $column = '*')
     {
-        $query->toCount($column);
-        return $this->findOne($query);
+        $qq = clone $query; //
+        $q = $qq->toCount($column);
+        return $this->findOne($q);
     }
 
     /**

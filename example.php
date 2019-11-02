@@ -29,7 +29,7 @@ $q = qb::select("* FROM users WHERE id=:id", [':id' => 12]);
 var_dump($q->build()); // SELECT * FROM users WHERE id=:id
 
 for other queries
-$q = qb::query("CREATE TABLE IF NOT EXISTS tasks...");
+    $q = qb::query("CREATE TABLE IF NOT EXISTS tasks...");
 var_dump($q->build()->sql); // CREATE TABLE IF NOT EXISTS tasks...
 
 // --------------------------------------------------------------------------------
@@ -150,7 +150,7 @@ $res = $db->findOne(qb::select('NOW()'));
 print_r($res);
 
 
-$q = qb::select("SELECT username, id")->from('users')->where([qb::RAW_WHERE => 'username IS NOT NULL AND 1', 'id' => ['>', 3] ])->limit(3);
+$q = qb::select("SELECT username, id")->from('users')->where([qb::RAW => 'username IS NOT NULL AND 1', 'id' => ['>', 3] ])->limit(3);
 var_dump($q->build()->sql);
 $res = $db->findAll($q);
 print_r($res);
@@ -165,9 +165,9 @@ print_r($res);
 
 
 $q = qb::insert('users2', [
-   'username' => 'Alex-'.random_int(0, 9999),
-   'email' => 'Email@host.xx',
-   'password' => password_hash(random_bytes(32), PASSWORD_DEFAULT)
+    'username' => 'Alex-'.random_int(0, 9999),
+    'email' => 'Email@host.xx',
+    'password' => password_hash(random_bytes(32), PASSWORD_DEFAULT)
 ]);
 print_r($q->build());
 $res = $db->run($q); // return last insert id
@@ -187,9 +187,9 @@ INSERT INTO users2 (username,email,password,created_at,updated_at) VALUES (:user
 
 
 $qb = qb::update('users2', [
-   'username' => 'Alex __ NEW__10',
+    'username' => 'Alex __ NEW__10',
 ], [
-   'id' => 10
+    'id' => 10
 ]);
 var_dump($qb->build()->sql); // UPDATE users2 SET username = :username, updated_at = :updated_at WHERE id = :id
 

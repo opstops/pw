@@ -9,7 +9,7 @@ use \RuntimeException;
 class QueryBuilder
 {
 
-    const RAW_WHERE = '{RAW}';
+    const RAW = '{RAW}';
 
     protected const PART_SELECT = 'SELECT';
     protected const PART_FROM = 'FROM';
@@ -131,11 +131,29 @@ class QueryBuilder
     }
 
     /**
+     * @param array|null $data
+     * @return QueryBuilder
+     */
+    protected function setDataWhere(array $data = null): void
+    {
+        if ($data) {
+            foreach ($data as $key => $value) {
+                $this->whereData[$key] = $value; // users data..
+            }
+        }
+    }
+
+    /**
      * @param array $where
+     * @param array $data
      * @return $this
      */
-    public function where(array $where):self
+    public function where(array $where, array $data = null):self
     {
+        if (!$where) {
+            return $this;
+        }
+
 //        ksort($where); // todo
 
         $whereDetails = null;
@@ -158,7 +176,7 @@ class QueryBuilder
 //                $this->whereData[":{$key}"] = $value;
 //            }
 //
-            if ($key === self::RAW_WHERE) {
+            if ($key === self::RAW) {
                 $t[] = $value;
             }
 
@@ -183,6 +201,8 @@ class QueryBuilder
 //        $whereDetails = 'WHERE ' . ltrim($whereDetails, ' AND ');
 
         $this->setPart(self::PART_WHERE, $whereDetails);
+
+        $this->setDataWhere($data);
 
         return $this;
     }
@@ -409,11 +429,7 @@ class QueryBuilder
 
         $this->setPart(self::PART_SELECT, $str);
 
-        if ($data) {
-            foreach ($data as $key => $value) {
-                $this->whereData[$key] = $value; // users data..
-            }
-        }
+        $this->setDataWhere($data);
 
         return $this;
     }
@@ -427,7 +443,7 @@ class QueryBuilder
      */
     public static function select(string $select, array $data = null):self
     {
-      return self::get()->_select($select, $data);
+        return self::get()->_select($select, $data);
     }
 
 

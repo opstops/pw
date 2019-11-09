@@ -100,7 +100,7 @@ DB queries
     //)
     
     
-    $res = $db->findAll($q, null, PDO::FETCH_ASSOC);
+    $res = $db->findAll($q, PDO::FETCH_ASSOC);
     
     //Array
     //(
@@ -172,7 +172,7 @@ DB queries
     //)
     
     
-    $res = $db->findRow($q, null, PDO::FETCH_ASSOC);
+    $res = $db->findRow($q, PDO::FETCH_ASSOC);
     //Array
     //(
     //    [username] => Lew

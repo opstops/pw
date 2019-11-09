@@ -18,6 +18,16 @@ $db = Database::get([
 ]);
 
 
+// fast tests
+//$q = qb::select('SELECT id, username FROM td_users WHERE id < 5');
+//$d = $this->db->findAll($q); var_dump($d);
+//$d = $this->db->findRow($q); var_dump($d);
+//$d = $this->db->findAssoc($q); var_dump($d);
+//$d = $this->db->findCol($q); var_dump($d);
+//$d = $this->db->findOne($q); var_dump($d);
+//$d = $this->db->findCount(qb::select('SELECT id, username')->from('td_users')); var_dump($d);
+
+
 echo '<pre>';
 $q = qb::select('SELECT * FROM users')->where(['id' => 110])->order('username ASC, id DESC')->limit(5)->group('id')->offset(6);
 var_dump($q->build()->sql); // SELECT * FROM users WHERE id = :id GROUP BY id ORDER BY username ASC, id DESC LIMIT 5 OFFSET 6
@@ -28,8 +38,8 @@ var_dump($q->build()->sql); // SELECT * FROM users ORDER BY username ASC, id DES
 $q = qb::select("* FROM users WHERE id=:id", [':id' => 12]);
 var_dump($q->build()); // SELECT * FROM users WHERE id=:id
 
-for other queries
-    $q = qb::query("CREATE TABLE IF NOT EXISTS tasks...");
+//for other queries
+$q = qb::query("CREATE TABLE IF NOT EXISTS tasks...");
 var_dump($q->build()->sql); // CREATE TABLE IF NOT EXISTS tasks...
 
 // --------------------------------------------------------------------------------
@@ -62,7 +72,7 @@ $res = $db->findAll($q);
 //)
 
 
-$res = $db->findAll($q, null, PDO::FETCH_ASSOC);
+$res = $db->findAll($q, PDO::FETCH_ASSOC);
 
 //Array
 //(
@@ -134,7 +144,7 @@ $res = $db->findAssoc($q);
 //)
 
 
-$res = $db->findRow($q, null, PDO::FETCH_ASSOC);
+$res = $db->findRow($q,PDO::FETCH_ASSOC);
 //Array
 //(
 //    [username] => Lew
@@ -176,7 +186,7 @@ var_dump($res);
 $res = $db->runDebug($q); // pdo statement debug
 var_dump($res);
 
-INSERT INTO users2 (username,email,password,created_at,updated_at) VALUES (:username, :email, :password, :created_at, :updated_at)
+// INSERT INTO users2 (username,email,password,created_at,updated_at) VALUES (:username, :email, :password, :created_at, :updated_at)
 
 //[:username] => Alex-8299
 //[:email] => Email@host.xx

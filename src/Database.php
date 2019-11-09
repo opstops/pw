@@ -120,78 +120,89 @@ class Database extends PDO
 //        var_dump($stmt, $t); exit;
     }
 
-
     /**
-     * @param string|null $className
+     * @param PDOStatement $stmt
+     * @param $classNameOrFetchMode
      */
-    protected function checkClass(string $className = null):void
+    protected function setClassFechMode(PDOStatement $stmt , $classNameOrFetchMode)
     {
-        if ($className && !class_exists($className)) { // RowInterface
-            throw new PDOException("Class {$className} not exists");
+        $classNameObject = null;
+
+        if (is_int($classNameOrFetchMode)) {
+            $fetchMode = $classNameOrFetchMode;
+
+            if (PDO::FETCH_COLUMN === $classNameOrFetchMode) {
+                $classNameObject = 0; // column number
+            }
+
+        } elseif(is_subclass_of($classNameOrFetchMode, RowInterface::class)) {
+            $fetchMode = PDO::FETCH_CLASS;
+            $classNameObject = $classNameOrFetchMode;
+
+        } else {
+            throw new PDOException("Invalid attribute (class name must be instanse of " . RowInterface::class . " or PDO::fech mode)");
+        }
+
+//        var_dump($fetchMode, $classNameObject); exit;
+        if (is_null($classNameObject)) {
+            $stmt->setFetchMode($fetchMode); // For FETCH_KEY_PAIR -  General error: fetch mode doesn't allow any extra arguments
+        } else {
+            $stmt->setFetchMode($fetchMode, $classNameObject);
         }
     }
 
     /**
      * @param QueryBuilder $query
-     * @param RowInterface|null $rowClass
-     * @param int|null $fetchMode
+     * @param null|string|int $classNameOrFetchMode
      * @return mixed
      */
-    public function findRow(QueryBuilder $query, RowInterface $rowClass = null, int $fetchMode = null)
+    public function findRow(QueryBuilder $query, $classNameOrFetchMode = null)
     {
         $qb = $query->build();
         $stmt = $this->prepareBindFromObj($qb->sql, $qb->input, $qb->where);
 
-        $stmt->execute();
-
-        if (!is_null($fetchMode)) {
-            return $stmt->fetch($fetchMode);
-        } else {
-            return is_null($rowClass) ? $stmt->fetch() : $stmt->fetch(PDO::FETCH_CLASS , $rowClass);
+        if (!is_null($classNameOrFetchMode)) {
+            $this->setClassFechMode($stmt, $classNameOrFetchMode);
         }
+
+        $stmt->execute();
+        return $stmt->fetch();
     }
 
     /**
      * @param QueryBuilder $query
-     * @param string|null $rowClass
-     * @param int|null $fetchMode   PDO::FETCH_OBJ, ...
+     * @param null|string|int $classNameOrFetchMode
      * @return array
      */
-    public function findAll(QueryBuilder $query, string $rowClass = null, int $fetchMode = null)
+    public function findAll(QueryBuilder $query, $classNameOrFetchMode = null)
     {
-        $this->checkClass($rowClass);
-
         $qb = $query->build();
         $stmt = $this->prepareBindFromObj($qb->sql, $qb->input, $qb->where);
 
-        $stmt->execute();
-
-        if (!is_null($fetchMode)) {
-            return $stmt->fetchAll($fetchMode);
-        } else {
-            return is_null($rowClass) ? $stmt->fetchAll() : $stmt->fetchAll(PDO::FETCH_CLASS , $rowClass);
+        if (!is_null($classNameOrFetchMode)) {
+            $this->setClassFechMode($stmt, $classNameOrFetchMode);
         }
+
+        $stmt->execute();
+        return $stmt->fetchAll();
     }
 
     /**
      * @param QueryBuilder $query
-     * @param string|null $rowClass
      * @return array
      */
-    public function findCol(QueryBuilder $query, string $rowClass = null)
+    public function findAssoc(QueryBuilder $query)
     {
-        $this->checkClass($rowClass);
-        return $this->findAll($query, $rowClass, PDO::FETCH_COLUMN);
+        return $this->findAll($query, PDO::FETCH_KEY_PAIR);
     }
 
     /**
      * @param QueryBuilder $query
-     * @param string|null $rowClass
      * @return array
      */
-    public function findAssoc(QueryBuilder $query, string $rowClass = null)
+    public function findCol(QueryBuilder $query)
     {
-        return $this->findAll($query, $rowClass, PDO::FETCH_KEY_PAIR);
+        return $this->findAll($query,  PDO::FETCH_COLUMN);
     }
 
     /**
@@ -199,13 +210,13 @@ class Database extends PDO
      * @param string|null $rowClass
      * @return mixed
      */
-    public function findOne(QueryBuilder $query, string $rowClass = null)
+    public function findOne(QueryBuilder $query)
     {
         $qb = $query->build();
         $stmt = $this->prepareBindFromObj($qb->sql, $qb->input, $qb->where);
 
         $stmt->execute();
-        return is_null($rowClass) ? $stmt->fetchColumn() : $stmt->fetchColumn(PDO::FETCH_CLASS , $rowClass);
+        return $stmt->fetchColumn();
     }
 
     /**

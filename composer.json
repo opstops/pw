@@ -1,6 +1,6 @@
 {
     "name": "opstops/pw",
-    "version": "0.1.4",
+    "version": "0.1.5",
     "description": "PHP PDO wrapper + ORM. Fast, lightweight, flexible and no dependencies!",
     "keywords": ["PDO", "wrapper", "PHP", "query builder", "ORM"],
     "type": "library",

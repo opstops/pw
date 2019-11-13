@@ -197,7 +197,7 @@ class QueryBuilder
         }
 
         $whereDetails = 'WHERE ' . implode(' AND ', $t);
-
+//        var_dump($whereDetails, $this->whereData); exit;
 //        $whereDetails = 'WHERE ' . ltrim($whereDetails, ' AND ');
 
         $this->setPart(self::PART_WHERE, $whereDetails);
@@ -486,6 +486,12 @@ class QueryBuilder
      */
     public function toCount(string $id = '*'): self
     {
+        $pn = self::PART_FROM;
+
+        if (!$this->getParts()[$pn]) {
+            throw new RuntimeException("{$pn} not found");
+        }
+
         $this->countId = $id;
         return $this;
     }

@@ -64,6 +64,12 @@ class QueryBuilder
     protected $countId = null;
 
     /**
+     * Auto add created_at; updated_at for insert / update
+     * @var bool
+     */
+//    protected $timestamps = false;
+
+    /**
      * @return QueryBuilder
      */
     protected static function get()
@@ -197,7 +203,7 @@ class QueryBuilder
         }
 
         $whereDetails = 'WHERE ' . implode(' AND ', $t);
-//        var_dump($whereDetails, $this->whereData); exit;
+//        var_dump($where,$whereDetails, $this->whereData); // exit;
 //        $whereDetails = 'WHERE ' . ltrim($whereDetails, ' AND ');
 
         $this->setPart(self::PART_WHERE, $whereDetails);
@@ -279,6 +285,15 @@ class QueryBuilder
     }
 
     /**
+     * @param bool $v
+     */
+//    public function addTimestamps($v = true)
+//    {
+//        $this->timestamps = $v;
+//        return $this;
+//    }
+
+    /**
      * @param int|string $time
      * @return false|string
      */
@@ -289,16 +304,21 @@ class QueryBuilder
     }
 
     /**
-     * @param $table
-     * @param $data
-     * @return $this
+     * @param string $table
+     * @param array $data
+     * @param bool $addTimestamps
+     * @param bool $ignore
+     * @return QueryBuilder
      */
-    protected function _insert(string $table, array $data):self
+    protected function _insert(string $table, array $data, $addTimestamps = false, $ignore = false):self
     {
         $this->method = 'insert';
 
-        $data['created_at'] = $this->timeToSql();
-        $data['updated_at'] = $data['created_at'];
+//        if ($this->timestamps) {
+        if ($addTimestamps) {
+            $data['created_at'] = $this->timeToSql();
+            $data['updated_at'] = $data['created_at'];
+        }
 
 //        ksort($data); // todo
         $fieldNames = implode(',', array_keys($data));
@@ -308,7 +328,9 @@ class QueryBuilder
             $this->inputData[":{$key}"] = $value;
         }
 
-        $this->setPart(self::PART_SELECT, "INSERT INTO {$table} ({$fieldNames}) VALUES ({$fieldValues})");
+        $ins = $ignore ? 'INSERT IGNORE' : 'INSERT';
+
+        $this->setPart(self::PART_SELECT, "{$ins} INTO {$table} ({$fieldNames}) VALUES ({$fieldValues})");
 
         return $this;
     }
@@ -316,24 +338,30 @@ class QueryBuilder
     /**
      * @param string $table
      * @param array $data
+     * @param bool $addTimestamps
+     * @param bool $ignore
      * @return QueryBuilder
      */
-    public static function insert(string $table, array $data):self
+    public static function insert(string $table, array $data, $addTimestamps = false, $ignore = false):self
     {
-        return self::get()->_insert($table, $data);
+        return self::get()->_insert($table, $data, $addTimestamps, $ignore);
     }
 
     /**
      * @param string $table
      * @param array $data
      * @param array $where
+     * @param bool $addTimestamps
      * @return QueryBuilder
      */
-    protected function _update(string $table, array $data, array $where):self
+    protected function _update(string $table, array $data, array $where, $addTimestamps = false):self
     {
         $this->method = 'update';
 
-        $data['updated_at'] = $this->timeToSql();
+//        if ($this->timestamps) {
+        if ($addTimestamps) {
+            $data['updated_at'] = $this->timeToSql();
+        }
 
 //        ksort($data); // todo
         $fieldDetails = null;
@@ -356,11 +384,12 @@ class QueryBuilder
      * @param string $table
      * @param array $data
      * @param array $where
+     * @param bool $addTimestamps
      * @return QueryBuilder
      */
-    public static function update(string $table, array $data, array $where):self
+    public static function update(string $table, array $data, array $where, $addTimestamps = false):self
     {
-        return self::get()->_update($table, $data, $where);
+        return self::get()->_update($table, $data, $where, $addTimestamps);
     }
 
     /**

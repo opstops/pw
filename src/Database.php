@@ -50,8 +50,8 @@ class Database extends PDO
                 PDO::ATTR_PERSISTENT => false,
                 PDO::ATTR_EMULATE_PREPARES => false, // true: requests are created by PDO and sent ready
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_OBJ, // PDO::FETCH_ASSOC,..
-                PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8 COLLATE utf8_unicode_ci"
-        ];
+//                PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8 COLLATE utf8_unicode_ci" // please use ;cha1rset=utf8mb4 in dsn
+        ]; //      $this->configureEncoding($connection, $config);
 
         if (!array_key_exists('options', $params)) {
             $params['options'] = [];
@@ -63,6 +63,10 @@ class Database extends PDO
 
         if (isset(self::$instances[$id])) {
             return self::$instances[$id];
+        }
+
+        if (!preg_match("/^.*:host.*;dbname=.*;charset=.*$/U", $params['dsn'])) {
+            throw new PDOException('Invalid dsn format! Example: mysql:host=127.0.0.1;dbname=dbname;charset=utf8');
         }
 
         $instance = new Database(

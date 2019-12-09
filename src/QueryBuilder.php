@@ -184,20 +184,24 @@ class QueryBuilder
 //
             if ($key === self::RAW) {
                 $t[] = $value;
-            }
 
-            // ['id' => ['>', 10]]
-            elseif (is_array($value)) {
+            } elseif (is_array($value)) { // ['id' => ['>', 10]]
                 if (count($value) != 2) {
                     throw new \RuntimeException('Invalid \'where\' data format');
                 }
 
-                $t[] = implode(' ', [$key, $value[0], ':' . $key]);
-                $this->whereData[":{$key}"] = $value[1];
+                $keyTag = ":{$key}";
+                $keyTag = str_replace('.', '_', $keyTag); // t.name -> t_name
 
-            } else {
-                $t[] = "$key = :$key";
-                $this->whereData[":{$key}"] = $value;
+                $t[] = implode(' ', [$key, $value[0], $keyTag]);
+                $this->whereData[$keyTag] = $value[1];
+
+            } else { // [id => 12]
+                $keyTag = ":{$key}";
+                $keyTag = str_replace('.', '_', $keyTag); // t.name -> t_name
+
+                $t[] = "$key = " . $keyTag;
+                $this->whereData[$keyTag] = $value;
             }
 
         }

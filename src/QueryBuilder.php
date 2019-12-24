@@ -9,8 +9,6 @@ use \RuntimeException;
 class QueryBuilder
 {
 
-    const RAW = '{RAW}';
-
     protected const PART_SELECT = 'SELECT';
     protected const PART_FROM = 'FROM';
     protected const PART_WHERE = 'WHERE';
@@ -75,6 +73,39 @@ class QueryBuilder
     protected static function get()
     {
         return new self();
+    }
+
+    /**
+     * @param string $value
+     * @return string
+     */
+    public static function raw(string $value):string
+    {
+        return '{{RAW:' . $value . '}}';
+    }
+
+    /**
+     * @param string $value
+     * @return bool
+     */
+    protected static function isRaw($value):bool // public static function isRaw(string $value):bool
+    {
+        return is_string($value) && preg_match('/^{{RAW\:(.*)}}$/U', $value, $m) > 0;
+    }
+
+    /**
+     * @param string $value
+     * @return string
+     */
+    protected static function decodeRaw(string $value):string
+    {
+        preg_match('/^{{RAW\:(.*)}}$/U', $value, $m);
+
+        if (!is_array($m) || empty($m[1])) {
+            throw new RuntimeException("Invalid format: {$value}");
+        }
+
+        return $m[1];
     }
 
     /**
@@ -150,6 +181,74 @@ class QueryBuilder
     }
 
     /**
+     *
+     * Example: [
+        'd1' => 123,
+        't.title' => 'Italy',
+        'age' => ['>', 53],
+        qb::RAW('time=NOW() AND d=123'), // no key
+        qb::RAW('time=NOW() AND d=123'),
+        't.time_create' => qb::RAW('NOW()'),
+     ]
+     *
+     * @param $data
+     * @return object
+     */
+    public static function prepareData(array $data)
+    {
+        $res = [
+            'fields' => [], // for insert
+            'values' => [],
+            'fav' => [], // fields&values; for where
+            'data' => []
+        ];
+
+        $fv = [];
+        $f = [];
+
+        foreach ($data as $key => $value) {
+
+            if (is_integer($key) && self::isRaw($value)) { // Example: ['name'=>'Name', qb::RAW('time=NOW() AND d=123')]
+                $res['fav'][] = self::decodeRaw($value);
+
+            } else {
+                $op = '=';
+                $val = $value;
+
+                if (is_array($value)) {
+                    if (count($value) != 2) {
+                        throw new \RuntimeException('Invalid \'where\' data format');
+                    }
+                    $op = $value[0];
+                    $val = $value[1];
+                }
+
+                $f[] = $key;
+
+                $keyTag = ":{$key}";
+                $keyTag = str_replace('.', '_', $keyTag); // t.name -> t_name
+
+                if (self::isRaw($value)) {
+                    $val = self::decodeRaw($value);
+                    $res['fav'][] = implode(' ', [$key, $op, $val]);
+
+                } else {
+                    $res['fav'][] = implode(' ', [$key, $op, $keyTag]);
+                    $res['data'][$keyTag] = $val;
+                }
+
+                $fv[] = $keyTag;
+            }
+
+        }
+
+        $res['fields'] =  implode(', ', $f);
+        $res['values'] = implode(', ', $fv);
+
+        return (object)$res;
+    }
+
+    /**
      * @param array $where
      * @param array $data
      * @return $this
@@ -160,60 +259,13 @@ class QueryBuilder
             return $this;
         }
 
-//        ksort($where); // todo
+        $dt = self::prepareData($where);
 
-        $whereDetails = null;
-
-        $t = [];
-        foreach ($where as $key => $value) {
-
-            // old ['id', '>' , 10]
-//            if (is_array($value)) {
-//                if (count($value) != 3) {
-//                    throw new \RuntimeException('Invalid \'where\' data format');
-//                }
-//
-//                $key = $value[0];
-//                $t[] = implode(' ', [$key, $value[1], ':' . $value[2]]);
-//                $this->whereData[":{$key}"] = $value[2];
-//
-//            } else {
-//                $t[] = "$key = :$key";
-//                $this->whereData[":{$key}"] = $value;
-//            }
-//
-            if ($key === self::RAW) {
-                $t[] = $value;
-
-            } elseif (is_array($value)) { // ['id' => ['>', 10]]
-                if (count($value) != 2) {
-                    throw new \RuntimeException('Invalid \'where\' data format');
-                }
-
-                $keyTag = ":{$key}";
-                $keyTag = str_replace('.', '_', $keyTag); // t.name -> t_name
-
-                $t[] = implode(' ', [$key, $value[0], $keyTag]);
-                $this->whereData[$keyTag] = $value[1];
-
-            } else { // [id => 12]
-                $keyTag = ":{$key}";
-                $keyTag = str_replace('.', '_', $keyTag); // t.name -> t_name
-
-                $t[] = "$key = " . $keyTag;
-                $this->whereData[$keyTag] = $value;
-            }
-
-        }
-
-        $whereDetails = 'WHERE ' . implode(' AND ', $t);
-//        var_dump($where,$whereDetails, $this->whereData); // exit;
-//        $whereDetails = 'WHERE ' . ltrim($whereDetails, ' AND ');
+        $this->setDataWhere($dt->data);
+        $whereDetails = 'WHERE ' . implode(' AND ', $dt->fav);
 
         $this->setPart(self::PART_WHERE, $whereDetails);
-
         $this->setDataWhere($data);
-
         return $this;
     }
 
@@ -318,22 +370,19 @@ class QueryBuilder
     {
         $this->method = 'insert';
 
-//        if ($this->timestamps) {
         if ($addTimestamps) {
             $data['created_at'] = $this->timeToSql();
             $data['updated_at'] = $data['created_at'];
         }
 
-//        ksort($data); // todo
-        $fieldNames = implode(',', array_keys($data));
-        $fieldValues = ':' . implode(', :', array_keys($data));
+        $dt = self::prepareData($data);
 
-        foreach ($data as $key => $value) {
-            $this->inputData[":{$key}"] = $value;
-        }
+        $fieldNames = $dt->fields;
+        $fieldValues = $dt->values;
+
+        $this->inputData = $dt->data;
 
         $ins = $ignore ? 'INSERT IGNORE' : 'INSERT';
-
         $this->setPart(self::PART_SELECT, "{$ins} INTO {$table} ({$fieldNames}) VALUES ({$fieldValues})");
 
         return $this;
@@ -362,21 +411,13 @@ class QueryBuilder
     {
         $this->method = 'update';
 
-//        if ($this->timestamps) {
         if ($addTimestamps) {
             $data['updated_at'] = $this->timeToSql();
         }
 
-//        ksort($data); // todo
-        $fieldDetails = null;
-
-        foreach ($data as $key => $value) {
-            $fieldDetails .= "$key = :$key, ";
-            $this->inputData[":{$key}"] = $value;
-        }
-
-        $fieldDetails = rtrim($fieldDetails, ', ');
-
+        $dt = self::prepareData($data);
+        $fieldDetails = implode(', ', $dt->fav);
+        $this->inputData = $dt->data;
 
         $this->setPart(self::PART_SELECT, "UPDATE {$table} SET {$fieldDetails}");
         $this->where($where);
@@ -434,9 +475,7 @@ class QueryBuilder
     protected function _truncate(string $table):self
     {
         $this->method = 'truncate';
-
         $this->setPart(self::PART_SELECT,"TRUNCATE TABLE {$table}");
-
         return $this;
     }
 
@@ -457,13 +496,9 @@ class QueryBuilder
     protected function _select(string $str, array $data = null):self
     {
         $this->method = 'select';
-
         $str = $this->replacePrefix('SELECT', $str, true);
-
         $this->setPart(self::PART_SELECT, $str);
-
         $this->setDataWhere($data);
-
         return $this;
     }
 
@@ -488,7 +523,6 @@ class QueryBuilder
     protected function _query(string $str, array $data = null):self
     {
         $this->method = 'query';
-
         $this->setPart(self::PART_SELECT, $str);
 
         if ($data) {

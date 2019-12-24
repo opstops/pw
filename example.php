@@ -160,7 +160,7 @@ $res = $db->findOne(qb::select('NOW()'));
 print_r($res);
 
 
-$q = qb::select("SELECT username, id")->from('users')->where([qb::RAW => 'username IS NOT NULL AND 1', 'id' => ['>', 3] ])->limit(3);
+$q = qb::select("SELECT username, id")->from('users')->where([qb::raw('username IS NOT NULL AND 1'), 'id' => ['>', 3] ])->limit(3);
 var_dump($q->build()->sql);
 $res = $db->findAll($q);
 print_r($res);

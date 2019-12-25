@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace OpstopsPw;
 
 
+use OpstopsPw\QueryBuilder as qb;
 use PDO;
 use PDOStatement;
 use PDOException;
@@ -244,11 +245,23 @@ class Database extends PDO
     public function run(QueryBuilder $query)
     {
         $qb = $query->build();
-        $stmt = $this->prepareBindFromObj($qb->sql, $qb->input, $qb->where);
 
-        $stmt->execute();
+        if ($qb->method == 'insert_multi') {
+            $ret = [];
+            foreach ($qb->sqlMulti as $k => $query) {
+                $stmt = $this->prepare($query);
+                $stmt->execute($qb->input[$k]);
+                $ret[] = $stmt->rowCount(); // you can array_sum(..)
+            }
 
-        return $qb->method == 'insert' ? $this->lastInsertId() : $stmt->rowCount();
+        } else {
+            $stmt = $this->prepareBindFromObj($qb->sql, $qb->input, $qb->where);
+            $stmt->execute();
+
+            $ret = $qb->method == 'insert' ? $this->lastInsertId() : $stmt->rowCount();
+        }
+
+        return $ret;
     }
 
 
@@ -259,9 +272,19 @@ class Database extends PDO
     public function runDebug(QueryBuilder $query)
     {
         $qb = $query->build();
-        $stmt = $this->prepareBindFromObj($qb->sql, $qb->input, $qb->where);
 
-        $stmt->execute();
+        if ($qb->method == 'insert_multi') {
+//            $ret = 0;
+            foreach ($qb->sqlMulti as $k => $query) {
+                $stmt = $this->prepare($query);
+                $stmt->execute($qb->input[$k]);
+//                $ret += $stmt->rowCount();
+            }
+        } else {
+            $stmt = $this->prepareBindFromObj($qb->sql, $qb->input, $qb->where);
+            $stmt->execute();
+        }
+
         return $stmt->debugDumpParams(); // you can see real request  if PDO::ATTR_EMULATE_PREPARES = true
     }
 

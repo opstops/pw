@@ -4,6 +4,8 @@ declare(strict_types=1);
 namespace OpstopsPw;
 
 
+use phpDocumentor\Reflection\DocBlock\Tags\Reference\Url;
+use phpDocumentor\Reflection\Types\Object_;
 use \RuntimeException;
 
 class QueryBuilder
@@ -53,6 +55,11 @@ class QueryBuilder
      * @var string
      */
     protected $sql = null;
+
+    /**
+     * @var null
+     */
+    protected $sqlMulti = [];
 
     /**
      * auto convert sql to count only if not null
@@ -353,25 +360,58 @@ class QueryBuilder
      * @param int|string $time
      * @return false|string
      */
-    protected function timeToSql($time = null)
+    public static function helperTimeToSql($time = null)
     {
         $time = $time ?? time();
         return date('Y-m-d H:i:s', is_string($time) ? strtotime($time) : $time);
     }
 
     /**
+     * For multi insert if data to long (1K+)
+     *
+     * For example: [[1,2], [1,2], ..] => [[[1,2], [1,2]], ..] if limit 2
+     *
+     * @param array $data
+     * @param int $limit
+     * @return array
+     */
+    public static function helperGroupToChunks(array $data, $limit = 100)
+    {
+        $i = 0;
+        $res = [];
+        $tmpAr = [];
+
+        foreach ($data as $r) {
+            $i++;
+            $tmpAr[] = $r;
+            if ($i == $limit) {
+                $res[] = $tmpAr;
+                $tmpAr = [];
+                $i = 0;
+            }
+        }
+
+        if ($tmpAr) { // last
+            $res[] = $tmpAr;
+        }
+
+        return $res;
+    }
+
+
+    /**
      * @param string $table
      * @param array $data
      * @param bool $addTimestamps
-     * @param bool $ignore
+     * @param bool $insertIgnore
      * @return QueryBuilder
      */
-    protected function _insert(string $table, array $data, $addTimestamps = false, $ignore = false):self
+    protected function _insert(string $table, array $data, $addTimestamps = false, bool $insertIgnore = false):self
     {
         $this->method = 'insert';
 
         if ($addTimestamps) {
-            $data['created_at'] = $this->timeToSql();
+            $data['created_at'] = self::helperTimeToSql();
             $data['updated_at'] = $data['created_at'];
         }
 
@@ -382,7 +422,7 @@ class QueryBuilder
 
         $this->inputData = $dt->data;
 
-        $ins = $ignore ? 'INSERT IGNORE' : 'INSERT';
+        $ins = $insertIgnore ? 'INSERT IGNORE' : 'INSERT';
         $this->setPart(self::PART_SELECT, "{$ins} INTO {$table} ({$fieldNames}) VALUES ({$fieldValues})");
 
         return $this;
@@ -390,14 +430,80 @@ class QueryBuilder
 
     /**
      * @param string $table
-     * @param array $data
-     * @param bool $addTimestamps
-     * @param bool $ignore
+     * @param array $colNames
+     * @param array $dataVals
+     * @param bool $insertIgnore
+     * @param string|null $dup
+     * @return $this
+     */
+    protected function _insertMulti(string $table, array $colNames, array $dataVals, bool $insertIgnore = false, string $dup = null, $splitTo = 100)
+    {
+        $this->method = 'insert_multi';
+
+//        $splitTo = 3;
+//        $dataVals = array_slice($dataVals, 0 , 3); // for test todo
+        $chunks = self::helperGroupToChunks($dataVals, $splitTo);
+
+        foreach ($chunks as $c) {
+//            var_dump($c);
+
+            // memory warning: this is creating a copy all of $dataVals
+            $dataToInsert = array();
+
+            foreach ($c as $l) { // to line array
+                foreach($l as $val) {
+                    $dataToInsert[] = $val;
+                }
+            }
+
+            $onDup = '';
+            if ($dup) {
+                $onDup = " ON DUPLICATE KEY UPDATE {$dup}";
+            }
+
+            // setup the placeholders - a fancy way to make the long "(?, ?, ?)..." string
+            $rowPlaces = '(' . implode(', ', array_fill(0, count($colNames), '?')) . ')';
+            $allPlaces = implode(', ', array_fill(0, count($c), $rowPlaces));
+
+            $ins = $insertIgnore ? 'INSERT IGNORE' : 'INSERT';
+            $this->sqlMulti[] = $ins . " INTO {$table} (" . implode(', ', $colNames) . ") VALUES " . $allPlaces . $onDup;
+
+            $this->inputData[] = $dataToInsert;
+        }
+
+        // as result
+//        'sqlMulti' =>
+//            array (size=2)
+//                0 => string 'INSERT INTO td_prv_directions (provider_id, from_country_id, from_city_id, to_country_id, to_city_id, updated_at) VALUES (?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?), (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE updated_at=VALUES(updated_at)' (length=273)
+//                1 => string 'INSERT INTO td_prv_directions (provider_id, from_country_id, from_city_id, to_country_id, to_city_id, updated_at) VALUES (?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE updated_at=VALUES(updated_at)' (length=193)
+
+        return $this;
+    }
+
+    /**
+     * @param string $table
+     * @param array $colNames       ['provider_id', 'time_create']
+     * @param array $dataVals       [[1, '2012-01-01'], ['provider_id'=>2, 'time_create' => '2012-01-02'], ..]
+     * @param bool $insertIgnore      Insert ignore on dup
+     * @param string|null $dup      Example: 'provider_id = VALUES(provider_id), time_create=NOW()'
      * @return QueryBuilder
      */
-    public static function insert(string $table, array $data, $addTimestamps = false, $ignore = false):self
+    public static function insertMulti(string $table, array $colNames, array $dataVals, bool $insertIgnore = false, string $dup = null):self
     {
-        return self::get()->_insert($table, $data, $addTimestamps, $ignore);
+        // self(...$args); _insertMulti(...$args)
+        return self::get()->_insertMulti( $table,  $colNames,  $dataVals,  $insertIgnore,  $dup );
+    }
+
+    /**
+     * @param string $table
+     * @param array $data
+     * @param bool $addTimestamps
+     * @param bool $insertIgnore
+     * @return QueryBuilder
+     */
+    public static function insert(string $table, array $data, $addTimestamps = false, $insertIgnore = false):self
+    {
+        return self::get()->_insert($table, $data, $addTimestamps, $insertIgnore);
     }
 
     /**
@@ -412,7 +518,7 @@ class QueryBuilder
         $this->method = 'update';
 
         if ($addTimestamps) {
-            $data['updated_at'] = $this->timeToSql();
+            $data['updated_at'] = self::helperTimeToSql();
         }
 
         $dt = self::prepareData($data);
@@ -629,6 +735,7 @@ class QueryBuilder
             'where' => $this->getWhereData(),
             'method' => $this->method,
             'sql' => $this->getSql(),
+            'sqlMulti' => $this->sqlMulti,
         ];
     }
 

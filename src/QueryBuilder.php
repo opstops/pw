@@ -59,7 +59,8 @@ class QueryBuilder
     /**
      * @var null
      */
-    protected $sqlMulti = [];
+    protected $sqlMulti = [
+    ];
 
     /**
      * auto convert sql to count only if not null
@@ -431,23 +432,36 @@ class QueryBuilder
     /**
      * @param string $table
      * @param array $colNames
-     * @param array $dataVals
+     * @param array $data
      * @param bool $insertIgnore
      * @param string|null $dup
      * @return $this
      */
-    protected function _insertMulti(string $table, array $colNames, array $dataVals, bool $insertIgnore = false, string $dup = null, $splitTo = 100)
+    protected function _insertMulti(string $table, array $colNames, array $data, $addTimestamps = false, bool $insertIgnore = false, string $dup = null, $splitTo = 100)
     {
         $this->method = 'insert_multi';
 
+        if ($addTimestamps) {
+            foreach ($data as $k => $v) {
+                $tt = self::helperTimeToSql();
+                $data[$k]['created_at'] = $tt;
+                $data[$k]['updated_at'] = $tt;
+            }
+        }
+
 //        $splitTo = 3;
-//        $dataVals = array_slice($dataVals, 0 , 3); // for test todo
-        $chunks = self::helperGroupToChunks($dataVals, $splitTo);
+//        $data = array_slice($data, 0 , 3); // for test todo
+        $chunks = self::helperGroupToChunks($data, $splitTo);
+
+        if ($addTimestamps) {
+            $colNames[] = 'created_at';
+            $colNames[] = 'updated_at';
+        }
 
         foreach ($chunks as $c) {
 //            var_dump($c);
 
-            // memory warning: this is creating a copy all of $dataVals
+            // memory warning: this is creating a copy all of $data
             $dataToInsert = array();
 
             foreach ($c as $l) { // to line array
@@ -483,15 +497,17 @@ class QueryBuilder
     /**
      * @param string $table
      * @param array $colNames       ['provider_id', 'time_create']
-     * @param array $dataVals       [[1, '2012-01-01'], ['provider_id'=>2, 'time_create' => '2012-01-02'], ..]
+     * @param array $data       [[1, '2012-01-01'], ['provider_id'=>2, 'time_create' => '2012-01-02'], ..]
+     * @param array $addTimestamps
      * @param bool $insertIgnore      Insert ignore on dup
      * @param string|null $dup      Example: 'provider_id = VALUES(provider_id), time_create=NOW()'
+     * @param int $splitTo
      * @return QueryBuilder
      */
-    public static function insertMulti(string $table, array $colNames, array $dataVals, bool $insertIgnore = false, string $dup = null):self
+    public static function insertMulti(string $table, array $colNames, array $data, $addTimestamps = false, bool $insertIgnore = false, string $dup = null, int $splitTo = 100):self
     {
         // self(...$args); _insertMulti(...$args)
-        return self::get()->_insertMulti( $table,  $colNames,  $dataVals,  $insertIgnore,  $dup );
+        return self::get()->_insertMulti( $table,  $colNames,  $data, $addTimestamps,  $insertIgnore,  $dup, $splitTo);
     }
 
     /**
